@@ -7,6 +7,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -16,30 +17,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import t4.springboot.demo.service.CustomUserDetailsService;
+import t4.springboot.demo.service.UserAuthService;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
-
-	@Autowired
-	JwtAuthenticationFilter authFilter;
 	
+	@Autowired
+	JWTAuthenticationFilter authFilter;
+
+	public static final String[] PUB_URL = { "/emp/login", "/emp/add"};
+//	public static final String[] ADMIN_URL = { "/emp/get","/emp/upd/*", "/emp/del/*",
+//			"/emp/getall" };
+//	public static final String[] NORMAL_URL = { "/emp/get", "/emp/get/*"};
+
 	@Bean
 	public UserDetailsService userDetailsService() {
-//		UserDetails normalUser = User.withUsername("Subhra").password(passwordEncoder().encode("abc"))
-//				.roles("NORMAL").build();
-//		UserDetails adminUser = User.withUsername("Subhra2").password(passwordEncoder().encode("abc"))
-//				.roles("ADMIN").build();
-//		return new InMemoryUserDetailsManager(normalUser, adminUser);
-		
-		return new CustomUserDetailsService();
-
-	}
-
-	@Bean
-	PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
+		return new UserAuthService();
 	}
 
 	@Bean
@@ -48,34 +43,34 @@ public class SecurityConfig {
 				.csrf()
 				.disable()
 				.authorizeHttpRequests()
-				.requestMatchers("/user/admin", "/user/upd/*")
-				.hasRole("ADMIN")
-				.requestMatchers("/user/normal")
-				.hasRole("NORMAL")
-				.requestMatchers("/user/public", "/user/add", "/user/signin")
+				.requestMatchers(PUB_URL)
 				.permitAll()
 				.anyRequest()
 				.authenticated()
 				.and()
+				.authenticationProvider(authenticationProvider())
 				.sessionManagement()
 				.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
 				.and()
-				.authenticationProvider(authProvider())
 				.addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
 				.build();
 	}
-	
+
 	@Bean
-	public AuthenticationProvider authProvider() {
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
+	@Bean
+	public AuthenticationProvider authenticationProvider() {
 		DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
 		authProvider.setUserDetailsService(userDetailsService());
 		authProvider.setPasswordEncoder(passwordEncoder());
 		return authProvider;
 	}
-	
-	@Bean
-	public AuthenticationManager authManager(AuthenticationConfiguration authConfig) throws Exception {
-		return authConfig.getAuthenticationManager();
-	}
 
+	@Bean
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration authconfig) throws Exception {
+		return authconfig.getAuthenticationManager();
+	}
 }
